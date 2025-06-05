@@ -52,21 +52,62 @@ export function SignUpForm() {
         body: JSON.stringify(data),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to register. Please try again.');
-      }
+      const contentType = response.headers.get('content-type');
 
-      // const responseData = await response.json(); // e.g., { userId: "...", email: "...", message: "..." }
-      toast({
-        title: "Registration Successful!",
-        description: "You can now log in with your new account.",
-      });
-      router.push('/auth/login'); // Redirect to login page on successful registration
+      if (response.ok) {
+        if (contentType && contentType.includes('application/json')) {
+          // const responseData = await response.json(); // e.g., { userId: "...", email: "...", message: "..." }
+          await response.json(); // Assuming success response structure matches
+          toast({
+            title: "Registration Successful!",
+            description: "You can now log in with your new account.",
+          });
+          router.push('/auth/login');
+        } else {
+          const responseText = await response.text();
+          console.error(
+            `Error: Backend returned non-JSON response. Status: ${response.status}. Content-Type: ${contentType}. Preview: ${responseText.substring(0, 100)}.`
+          );
+          toast({
+            title: "Registration Failed",
+            description: "The server returned an unexpected response. Please try again later.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        // Handle HTTP errors (e.g., 4xx, 5xx)
+        let errorMessage = "Failed to register. Please try again.";
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || `Server error: ${response.status}`;
+          } catch (jsonError) {
+            console.error("Failed to parse JSON error response:", jsonError);
+            const responseText = await response.text();
+            console.error(
+              `Error: Backend returned non-JSON error response. Status: ${response.status}. Content-Type: ${contentType}. Preview: ${responseText.substring(0, 100)}.`
+            );
+            errorMessage = "The server returned an unexpected error format. Please try again later.";
+          }
+        } else {
+           const responseText = await response.text();
+           console.error(
+            `Error: Backend returned non-JSON error response. Status: ${response.status}. Content-Type: ${contentType}. Preview: ${responseText.substring(0, 100)}.`
+          );
+          errorMessage = "The server returned an unexpected response. Please try again later.";
+        }
+        toast({
+          title: "Registration Failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      }
     } catch (error: any) {
+      // Handle network errors or other exceptions during fetch
+      console.error("Network or other error during registration:", error);
       toast({
         title: "Registration Failed",
-        description: error.message || "An unexpected error occurred.",
+        description: error.message || "An unexpected network error occurred. Please check your connection and try again.",
         variant: "destructive",
       });
     } finally {
