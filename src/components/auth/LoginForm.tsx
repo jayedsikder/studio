@@ -26,6 +26,9 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+// IMPORTANT: Replace this with your actual backend base URL
+const YOUR_ACTUAL_BACKEND_BASE_URL = '[YOUR_ACTUAL_BACKEND_BASE_URL]';
+
 export function LoginForm() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -43,38 +46,57 @@ export function LoginForm() {
   const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
     setIsLoading(true);
 
-    // --- Scenario A: Custom API Backend ---
+    if (YOUR_ACTUAL_BACKEND_BASE_URL === '[YOUR_ACTUAL_BACKEND_BASE_URL]') {
+      toast({
+        title: "Configuration Incomplete",
+        description: "Please replace '[YOUR_ACTUAL_BACKEND_BASE_URL]' in LoginForm.tsx with your actual backend URL.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+    
+    const loginApiUrl = `${YOUR_ACTUAL_BACKEND_BASE_URL}/auth/login`;
+
     try {
-      // Replace with your actual API endpoint
-      const response = await fetch('/api/mock/auth/login', {
+      const response = await fetch(loginApiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
 
+      const responseData = await response.json(); // Attempt to parse JSON for both success and error
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Invalid email or password.');
+        // Backend returned an error (e.g., 401, 400)
+        const errorMessage = responseData.message || responseData.error || `Login failed with status: ${response.status}`;
+        console.error('Login API Error Response:', responseData);
+        toast({
+          title: "Login Failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      } else {
+        // Successful login
+        console.log("Login successful. Tokens received:", responseData);
+        // TODO: Securely store tokens (e.g., in HttpOnly cookies via backend, or in context/localStorage)
+        // Example:
+        // if (responseData.accessToken) localStorage.setItem('accessToken', responseData.accessToken);
+        // if (responseData.refreshToken) localStorage.setItem('refreshToken', responseData.refreshToken);
+        // if (contextLogin) contextLogin(responseData.accessToken, responseData.refreshToken);
+        
+        toast({
+          title: "Login Successful!",
+          description: "Welcome back!",
+        });
+        router.push('/'); // Redirect to home page or dashboard
       }
-
-      const responseData = await response.json(); // e.g., { accessToken: "...", refreshToken: "..." }
-      
-      // Handle token storage (e.g., in localStorage, context, or HttpOnly cookie via backend)
-      // Example: localStorage.setItem('accessToken', responseData.accessToken);
-      // if (responseData.refreshToken) localStorage.setItem('refreshToken', responseData.refreshToken);
-      // if (contextLogin) contextLogin(responseData.accessToken, responseData.refreshToken);
-
-      console.log("Received tokens (Scenario A):", responseData); // For demonstration
-      
-      toast({
-        title: "Login Successful!",
-        description: "Welcome back!",
-      });
-      router.push('/'); // Redirect to home page or dashboard
     } catch (error: any) {
+      // Network error or other issues (e.g., failed to parse JSON if backend sent completely unexpected response)
+      console.error('Login submission error:', error);
       toast({
         title: "Login Failed",
-        description: error.message || "An unexpected error occurred.",
+        description: error.message || "An unexpected error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
