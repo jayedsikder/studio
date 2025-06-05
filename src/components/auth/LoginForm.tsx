@@ -26,8 +26,9 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-// IMPORTANT: Replace this with your actual backend base URL
-const YOUR_ACTUAL_BACKEND_BASE_URL = '[YOUR_ACTUAL_BACKEND_BASE_URL]';
+// IMPORTANT: Replace this string with your live backend API's base URL!
+// For example: 'http://localhost:8000' or 'https://api.yourdomain.com'
+const YOUR_ACTUAL_BACKEND_BASE_URL = 'MUST_REPLACE_WITH_YOUR_ACTUAL_BACKEND_BASE_URL';
 
 export function LoginForm() {
   const router = useRouter();
@@ -46,10 +47,10 @@ export function LoginForm() {
   const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
     setIsLoading(true);
 
-    if (YOUR_ACTUAL_BACKEND_BASE_URL === '[YOUR_ACTUAL_BACKEND_BASE_URL]') {
+    if (YOUR_ACTUAL_BACKEND_BASE_URL === 'MUST_REPLACE_WITH_YOUR_ACTUAL_BACKEND_BASE_URL') {
       toast({
         title: "Configuration Incomplete",
-        description: "Please replace '[YOUR_ACTUAL_BACKEND_BASE_URL]' in LoginForm.tsx with your actual backend URL.",
+        description: "Please replace 'MUST_REPLACE_WITH_YOUR_ACTUAL_BACKEND_BASE_URL' in LoginForm.tsx with your actual backend URL.",
         variant: "destructive",
       });
       setIsLoading(false);
