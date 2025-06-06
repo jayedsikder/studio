@@ -11,15 +11,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, LogInIcon } from 'lucide-react'; // Changed from MailIcon
+import { Loader2, LogInIcon } from 'lucide-react';
 
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, signOut } from "firebase/auth"; // Added signOut
 import { app } from "@/lib/firebase";
-import { useAuth } from '@/contexts/AuthContext'; // Import useAuth to potentially redirect if already logged in
+import { useAuth } from '@/contexts/AuthContext';
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
-  password: z.string().min(1, { message: "Password is required." }), // Password field added
+  password: z.string().min(1, { message: "Password is required." }),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -27,18 +27,17 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export function LoginForm() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const { user } = useAuth(); // Get user from auth context
+  const { user: authContextUser } = useAuth(); // Renamed to avoid conflict
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: '',
-      password: '', // Default value for password
+      password: '',
     },
   });
 
-  // Redirect if user is already logged in
-  if (user) {
+  if (authContextUser) {
     router.push('/');
   }
 
@@ -49,11 +48,25 @@ export function LoginForm() {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
       
+      if (!userCredential.user.emailVerified) {
+        // If email is not verified, sign the user out again and show a message.
+        await signOut(auth); // Sign out the user
+        toast({
+          title: "Login Failed",
+          description: "Your email address has not been verified. Please check your email (and spam folder) for the verification link.",
+          variant: "destructive",
+          duration: 9000,
+        });
+        setIsLoading(false);
+        return; // Stop further execution
+      }
+
+      // Email is verified, proceed with login
       toast({
         title: "Login Successful!",
         description: `Welcome back, ${userCredential.user.email}!`,
       });
-      router.push('/'); // Redirect to homepage or dashboard after successful login
+      router.push('/'); 
       form.reset();
     } catch (error: any) {
       console.error("Firebase Login Error:", error);
@@ -68,7 +81,7 @@ export function LoginForm() {
             break;
           case "auth/user-not-found":
           case "auth/wrong-password":
-          case "auth/invalid-credential": // Catches both wrong password and user not found in newer SDK versions
+          case "auth/invalid-credential":
             errorMessage = "Invalid email or password.";
             break;
           default:

@@ -13,8 +13,8 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { toast } from '@/hooks/use-toast';
 import { Loader2, UserPlus } from 'lucide-react';
 
-import { getAuth, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { app } from "@/lib/firebase"; 
+import { getAuth, createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth";
+import { app } from "@/lib/firebase";
 
 const signUpSchema = z.object({
   firstName: z.string().min(2, { message: "First name must be at least 2 characters." }),
@@ -46,16 +46,20 @@ export function SignUpForm() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
       
-      // Optionally, update Firebase user profile with firstName, lastName here
       if (userCredential.user) {
         await updateProfile(userCredential.user, { displayName: `${data.firstName} ${data.lastName}` });
+        await sendEmailVerification(userCredential.user);
+        toast({
+          title: "Registration Almost Complete!",
+          description: "Please check your email (and spam folder) for a verification link. You must verify your email before logging in.",
+          duration: 9000, // Longer duration for this important message
+        });
+        form.reset(); 
+        // router.push('/auth/login'); // Don't redirect immediately, let them see the message.
+      } else {
+        throw new Error("User creation failed unexpectedly.");
       }
 
-      toast({
-        title: "Registration Successful!",
-        description: "Welcome! You can now log in.",
-      });
-      router.push('/auth/login');
     } catch (error: any) {
       let errorMessage = "An unexpected error occurred.";
       if (error.code) {
