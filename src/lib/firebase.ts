@@ -4,15 +4,15 @@ import { getAuth } from "firebase/auth";
 // import { getFirestore } from "firebase/firestore"; // Uncomment if you need Firestore
 // import { getStorage } from "firebase/storage"; // Uncomment if you need Storage
 
-// These are the values from your Firebase project settings (sample-firebase-ai-app-5fdcf).
+// These are the values from your Firebase project settings.
 // Environment variables (e.g., in .env.local) will take precedence if set.
 const FIREBASE_CONFIG_DEFAULTS = {
-  apiKey: "AIzaSyBALgOLUsJDhLOtGEguXyScIpPSEfv-ac",
+  apiKey: "AIzaSyBALgOUsJDbtOEguUy5c3p9nIP9SEfv-sc", // UPDATED from user
   authDomain: "sample-firebase-ai-app-5fdcf.firebaseapp.com",
   projectId: "sample-firebase-ai-app-5fdcf",
-  storageBucket: "sample-firebase-ai-app-5fdcf.appspot.com",
+  storageBucket: "sample-firebase-ai-app-5fdcf.firebasestorage.app", // UPDATED from user
   messagingSenderId: "1073114565964",
-  appId: "1:1073114565964:web:2becb166d6351114c093e9",
+  appId: "1:1073114565964:web:2becb166d6351114e993e9", // UPDATED from user
 };
 
 const firebaseConfig: FirebaseOptions = {
@@ -59,14 +59,14 @@ if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.proj
       "Firebase features will not work correctly. Please ensure your .env.local file is correct OR your Firebase project has valid default configuration. " +
       "Current API Key determined for use: ", "color: red; font-weight: bold;", firebaseConfig.apiKey
     );
-  } else if (firebaseConfig.apiKey === "AIzaSyBALgOLUsJDhLOtGEguXyScIpPSEfv-ac" && !process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
-    // This specific check warns if the default placeholder-like key is used AND no env var is overriding it.
-    console.warn(
-        "%cFirebase is using the default API key 'AIzaSyBALgOLUsJDhLOtGEguXyScIpPSEfv-ac'. " +
-        "If you continue to experience 'auth/api-key-not-valid' errors, " +
-        "1. Ensure this key is correct and active for your 'sample-firebase-ai-app-5fdcf' project. " +
-        "2. Check for API restrictions on this key in your Firebase Console (Project Settings > General > API Keys). " +
-        "3. Consider generating a NEW Web API key in your Firebase project and using it, preferably via environment variables (.env.local).", "color: orange;"
+  } else if (firebaseConfig.apiKey === "AIzaSyBALgOUsJDbtOEguUy5c3p9nIP9SEfv-sc" && !process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+    // This specific check warns if the default key is used AND no env var is overriding it.
+    // We adjust this slightly - if it's THIS specific default key and no env var, it means we're using the one from the console.
+    // The main concern is if the API key is blank or a generic placeholder.
+    console.info(
+        "%cFirebase is using the API key from the hardcoded defaults in firebase.ts. " +
+        "Ensure this key is correct and active for your 'sample-firebase-ai-app-5fdcf' project. " +
+        "Check for API restrictions on this key in your Firebase Console (Project Settings > General > API Keys). ", "color: dodgerblue;"
     );
 }
 
