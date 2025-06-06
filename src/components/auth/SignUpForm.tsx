@@ -10,9 +10,9 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, UserPlus, User, Mail, Lock, Eye, EyeOff, ShieldCheck } from 'lucide-react';
+import { Loader2, UserPlus, User, Mail, Lock, Eye, EyeOff, ArrowRight, LockKeyholeIcon } from 'lucide-react';
 import Link from 'next/link';
 
 import { getAuth, createUserWithEmailAndPassword, updateProfile, sendEmailVerification, signOut } from "firebase/auth";
@@ -29,7 +29,7 @@ const signUpSchema = z.object({
   }),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Passwords do not match.",
-  path: ["confirmPassword"], // Set error on confirmPassword field
+  path: ["confirmPassword"],
 });
 
 type SignUpFormValues = z.infer<typeof signUpSchema>;
@@ -70,7 +70,8 @@ export function SignUpForm() {
           description: "Please check your email (and spam folder) for a verification link. You must verify your email before logging in.",
           duration: 9000, 
         });
-        form.reset(); 
+        form.reset();
+        router.push('/auth/login'); // Redirect to login after successful signup prompt
       } else {
         throw new Error("User creation failed unexpectedly.");
       }
@@ -104,156 +105,179 @@ export function SignUpForm() {
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="firstName"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>First Name</FormLabel>
-                <FormControl>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input placeholder="John" {...field} className="pl-10" />
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="lastName"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Last Name</FormLabel>
-                <FormControl>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                    <Input placeholder="Doe" {...field} className="pl-10" />
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+    <div className="bg-slate-800/60 backdrop-blur-xl p-8 sm:p-10 rounded-3xl shadow-2xl w-full border border-slate-700">
+      <div className="flex justify-center mb-8">
+        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center bg-gradient-to-br from-pink-500/70 via-red-500/70 to-yellow-500/70 p-1 shadow-lg">
+          <div className="w-full h-full bg-slate-800/80 rounded-full flex items-center justify-center backdrop-blur-sm">
+            <UserPlus className="w-10 h-10 sm:w-12 sm:h-12 text-sky-400" />
+          </div>
         </div>
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Email Address</FormLabel>
-              <FormControl>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input type="email" placeholder="you@example.com" {...field} className="pl-10" />
-                </div>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Password</FormLabel>
-              <FormControl>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input 
-                    type={showPassword ? "text" : "password"} 
-                    placeholder="••••••••" 
-                    {...field} 
-                    className="pl-10 pr-10"
+      </div>
+      <h1 className="text-2xl sm:text-3xl font-bold text-center text-slate-100 mb-8">Create Your Account</h1>
+      
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="firstName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <div className="relative">
+                      <User className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
+                      <Input 
+                        placeholder="First Name" 
+                        {...field} 
+                        className="w-full pl-12 pr-4 py-3 bg-slate-700/50 text-slate-200 border border-slate-600/70 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all duration-300 placeholder-slate-400"
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage className="text-pink-400" />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="lastName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <div className="relative">
+                      <User className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
+                      <Input 
+                        placeholder="Last Name" 
+                        {...field} 
+                        className="w-full pl-12 pr-4 py-3 bg-slate-700/50 text-slate-200 border border-slate-600/70 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all duration-300 placeholder-slate-400"
+                      />
+                    </div>
+                  </FormControl>
+                  <FormMessage className="text-pink-400" />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
+                    <Input 
+                      type="email" 
+                      placeholder="Email Address" 
+                      {...field} 
+                      className="w-full pl-12 pr-4 py-3 bg-slate-700/50 text-slate-200 border border-slate-600/70 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all duration-300 placeholder-slate-400"
+                    />
+                  </div>
+                </FormControl>
+                <FormMessage className="text-pink-400" />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <div className="relative">
+                    <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
+                    <Input 
+                      type={showPassword ? "text" : "password"} 
+                      placeholder="Password" 
+                      {...field} 
+                      className="w-full pl-12 pr-10 py-3 bg-slate-700/50 text-slate-200 border border-slate-600/70 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all duration-300 placeholder-slate-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 text-slate-400 hover:text-sky-400 transition-colors duration-300"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </FormControl>
+                <FormMessage className="text-pink-400" />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="confirmPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <div className="relative">
+                    <LockKeyholeIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-slate-400" />
+                    <Input 
+                      type={showConfirmPassword ? "text" : "password"} 
+                      placeholder="Confirm Password" 
+                      {...field} 
+                      className="w-full pl-12 pr-10 py-3 bg-slate-700/50 text-slate-200 border border-slate-600/70 rounded-xl focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all duration-300 placeholder-slate-400"
+                    />
+                     <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 p-2 text-slate-400 hover:text-sky-400 transition-colors duration-300"
+                      aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </FormControl>
+                <FormMessage className="text-pink-400" />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="termsAccepted"
+            render={({ field }) => (
+              <FormItem className="flex items-center space-x-3">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    id="terms-agreement"
+                    className="h-5 w-5 text-sky-500 bg-slate-700/50 border-slate-600/70 rounded focus:ring-sky-500 focus:ring-offset-slate-800/50 data-[state=checked]:bg-sky-500 data-[state=checked]:text-slate-900"
                   />
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    size="icon" 
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                  >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </Button>
-                </div>
-              </FormControl>
-              <FormDescription>
-                Must be at least 8 characters.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="confirmPassword"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Confirm Password</FormLabel>
-              <FormControl>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input 
-                    type={showConfirmPassword ? "text" : "password"} 
-                    placeholder="••••••••" 
-                    {...field} 
-                    className="pl-10 pr-10"
-                  />
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    size="icon" 
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
-                  >
-                    {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </Button>
-                </div>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="termsAccepted"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
-              <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                  id="termsAccepted"
-                />
-              </FormControl>
-              <div className="space-y-1 leading-none">
-                <FormLabel
-                  htmlFor="termsAccepted"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  I agree to the <Link href="/terms-and-conditions" className="text-primary hover:underline" target="_blank">Terms and Conditions</Link>
-                </FormLabel>
-                <FormMessage />
-              </div>
-            </FormItem>
-          )}
-        />
-        <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading}>
-          {isLoading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <UserPlus className="mr-2 h-4 w-4" />
-          )}
-          {isLoading ? 'Creating Account...' : 'Create Account'}
-        </Button>
-      </form>
-    </Form>
+                </FormControl>
+                <label htmlFor="terms-agreement" className="text-sm text-slate-300">
+                  I agree to the <Link href="/terms-and-conditions" className="text-sky-400 hover:text-sky-300 transition-colors duration-300" target="_blank">Terms and Conditions</Link>
+                </label>
+                <FormMessage className="text-pink-400" />
+              </FormItem>
+            )}
+          />
+          <Button 
+            type="submit" 
+            className="w-full bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 text-white font-semibold py-3 px-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-opacity-75 flex items-center justify-center group"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            ) : (
+              <>
+                Sign Up
+                <ArrowRight className="ml-2 h-5 w-5 transform transition-transform duration-300 group-hover:translate-x-1" />
+              </>
+            )}
+          </Button>
+        </form>
+      </Form>
+      <div className="mt-8 text-center">
+        <p className="text-sm text-slate-400">
+          Already have an account?{' '}
+          <Link href="/auth/login" className="font-medium text-sky-400 hover:text-sky-300 transition-colors duration-300">
+            Sign In
+          </Link>
+        </p>
+      </div>
+    </div>
   );
 }
