@@ -11,13 +11,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, MailIcon } from 'lucide-react';
+import { Loader2, LogInIcon } from 'lucide-react'; // Changed from MailIcon
 
-import { getAuth, sendSignInLinkToEmail } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { app } from "@/lib/firebase";
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth to potentially redirect if already logged in
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
+  password: z.string().min(1, { message: "Password is required." }), // Password field added
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -25,56 +27,56 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export function LoginForm() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth(); // Get user from auth context
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: '',
+      password: '', // Default value for password
     },
   });
+
+  // Redirect if user is already logged in
+  if (user) {
+    router.push('/');
+  }
 
   const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
     setIsLoading(true);
     const auth = getAuth(app);
 
-    const actionCodeSettings = {
-      url: `${window.location.origin}/auth/finish-login`, // URL to redirect back to
-      handleCodeInApp: true,
-    };
-
-    // Log the URL being used for Firebase email link settings
-    console.log('Using actionCodeSettings.url:', actionCodeSettings.url);
-
     try {
-      await sendSignInLinkToEmail(auth, data.email, actionCodeSettings);
-      // Save the email locally so you don't need to ask the user for it again
-      // if they open the link on the same device.
-      window.localStorage.setItem('emailForSignIn', data.email);
+      const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
       
       toast({
-        title: "Login Link Sent!",
-        description: `A login link has been sent to ${data.email}. Please check your inbox.`,
+        title: "Login Successful!",
+        description: `Welcome back, ${userCredential.user.email}!`,
       });
-      // Optionally, you can redirect the user or clear the form
-      // router.push('/some-confirmation-page'); 
+      router.push('/'); // Redirect to homepage or dashboard after successful login
       form.reset();
     } catch (error: any) {
-      console.error("Firebase Send Link Error:", error);
-      let errorMessage = "Failed to send login link. Please try again.";
+      console.error("Firebase Login Error:", error);
+      let errorMessage = "Failed to log in. Please try again.";
       if (error.code) {
         switch (error.code) {
           case "auth/invalid-email":
             errorMessage = "The email address is not valid.";
-          case "auth/unauthorized-continue-uri":
-            errorMessage = "Firebase: Domain not allowlisted by project. Please check Firebase console > Authentication > Settings > Authorized domains, and ensure your current domain (likely 'localhost') is added.";
             break;
-          // Add other Firebase error codes as needed
+          case "auth/user-disabled":
+            errorMessage = "This user account has been disabled.";
+            break;
+          case "auth/user-not-found":
+          case "auth/wrong-password":
+          case "auth/invalid-credential": // Catches both wrong password and user not found in newer SDK versions
+            errorMessage = "Invalid email or password.";
+            break;
           default:
             errorMessage = error.message || "An unexpected error occurred.";
         }
       }
       toast({
-        title: "Error Sending Link",
+        title: "Login Failed",
         description: errorMessage,
         variant: "destructive",
       });
@@ -99,13 +101,26 @@ export function LoginForm() {
             </FormItem>
           )}
         />
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Password</FormLabel>
+              <FormControl>
+                <Input type="password" placeholder="••••••••" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={isLoading}>
           {isLoading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
-            <MailIcon className="mr-2 h-4 w-4" />
+            <LogInIcon className="mr-2 h-4 w-4" />
           )}
-          {isLoading ? 'Sending Link...' : 'Send Login Link'}
+          {isLoading ? 'Logging In...' : 'Log In'}
         </Button>
       </form>
     </Form>
