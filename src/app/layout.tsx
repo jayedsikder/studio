@@ -1,8 +1,10 @@
+
 import type { Metadata } from 'next';
 import './globals.css';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { CartProvider } from '@/contexts/CartContext';
+import { AuthProvider } from '@/contexts/AuthContext'; // Import AuthProvider
 import { Toaster } from "@/components/ui/toaster";
 import { cn } from '@/lib/utils';
 
@@ -29,14 +31,16 @@ export default function RootLayout({
         )}
         suppressHydrationWarning // Added to handle potential browser extension interference
       >
-        <CartProvider>
-          <Header />
-          <main className="flex-grow container mx-auto px-4 py-8">
-            {children}
-          </main>
-          <Footer />
-          <Toaster />
-        </CartProvider>
+        <AuthProvider> {/* Wrap CartProvider and the rest with AuthProvider */}
+          <CartProvider>
+            <Header />
+            <main className="flex-grow container mx-auto px-4 py-8">
+              {children}
+            </main>
+            <Footer />
+            <Toaster />
+          </CartProvider>
+        </AuthProvider>
       </body>
     </html>
   );
