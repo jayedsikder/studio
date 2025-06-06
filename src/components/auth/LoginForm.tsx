@@ -42,6 +42,9 @@ export function LoginForm() {
       handleCodeInApp: true,
     };
 
+    // Log the URL being used for Firebase email link settings
+    console.log('Using actionCodeSettings.url:', actionCodeSettings.url);
+
     try {
       await sendSignInLinkToEmail(auth, data.email, actionCodeSettings);
       // Save the email locally so you don't need to ask the user for it again
@@ -62,6 +65,8 @@ export function LoginForm() {
         switch (error.code) {
           case "auth/invalid-email":
             errorMessage = "The email address is not valid.";
+          case "auth/unauthorized-continue-uri":
+            errorMessage = "Firebase: Domain not allowlisted by project. Please check Firebase console > Authentication > Settings > Authorized domains, and ensure your current domain (likely 'localhost') is added.";
             break;
           // Add other Firebase error codes as needed
           default:
