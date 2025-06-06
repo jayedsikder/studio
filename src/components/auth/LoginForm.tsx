@@ -8,10 +8,10 @@ import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-import { Button } from '@/components/ui/button'; // Will use custom styling for the main button
-import { Input } from '@/components/ui/input'; // Will use custom styling
+import { Button } from '@/components/ui/button'; 
+import { Input } from '@/components/ui/input'; 
 import { Checkbox } from "@/components/ui/checkbox";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'; // Form structure
+import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form'; 
 import { toast } from '@/hooks/use-toast';
 import { Loader2, ShoppingBag, ArrowRight, ChevronRight, Eye, EyeOff } from 'lucide-react';
 
@@ -31,7 +31,7 @@ export function LoginForm() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const { user: authContextUser } = useAuth(); // Use useAuth hook
+  const { user: authContextUser } = useAuth(); 
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -43,7 +43,7 @@ export function LoginForm() {
   });
 
   if (authContextUser) {
-    router.push('/'); // Redirect if already logged in
+    router.push('/'); 
   }
 
   const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
@@ -161,25 +161,31 @@ export function LoginForm() {
             )}
           />
           
-          <FormField
-            control={form.control}
-            name="keepSignedIn"
-            render={({ field }) => (
-              <FormItem className="flex items-center space-x-3 space-y-0">
-                <FormControl>
-                  <Checkbox
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                    id="keep-signed-in"
-                    className="h-5 w-5 text-sky-500 bg-slate-700/50 border-slate-600/70 rounded focus:ring-sky-500 focus:ring-offset-slate-800/50 data-[state=checked]:bg-sky-500 data-[state=checked]:text-slate-900"
-                  />
-                </FormControl>
-                <label htmlFor="keep-signed-in" className="text-sm text-slate-300 font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Keep me signed in
-                </label>
-              </FormItem>
-            )}
-          />
+          <div className="flex items-center justify-between">
+            <FormField
+              control={form.control}
+              name="keepSignedIn"
+              render={({ field }) => (
+                <FormItem className="flex items-center space-x-3 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      id="keep-signed-in"
+                      className="h-5 w-5 text-sky-500 bg-slate-700/50 border-slate-600/70 rounded focus:ring-sky-500 focus:ring-offset-slate-800/50 data-[state=checked]:bg-sky-500 data-[state=checked]:text-slate-900"
+                    />
+                  </FormControl>
+                  <label htmlFor="keep-signed-in" className="text-sm text-slate-300 font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Keep me signed in
+                  </label>
+                </FormItem>
+              )}
+            />
+             <Link href="/auth/forgot-password" className="text-sm text-sky-400 hover:text-sky-300 transition-colors duration-300">
+                Forgot password?
+            </Link>
+          </div>
+
 
           <Button 
             type="submit" 
@@ -196,11 +202,8 @@ export function LoginForm() {
             )}
           </Button>
 
-          <div className="space-y-2 text-center pt-4">
-            <Link href="#" className="block text-sm text-sky-400 hover:text-sky-300 transition-colors duration-300">
-                Forgot password? <ChevronRight className="inline-block h-4 w-4 text-sm align-middle" />
-            </Link>
-            <Link href="/auth/signup" className="block text-sm text-sky-400 hover:text-sky-300 transition-colors duration-300">
+          <div className="text-center pt-4">
+            <Link href="/auth/signup" className="text-sm text-sky-400 hover:text-sky-300 transition-colors duration-300">
                 Create New Account <ChevronRight className="inline-block h-4 w-4 text-sm align-middle" />
             </Link>
           </div>
