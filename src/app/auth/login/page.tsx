@@ -1,32 +1,23 @@
 
 import { LoginForm } from '@/components/auth/LoginForm';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Metadata } from 'next';
-import Link from 'next/link';
 
 export const metadata: Metadata = {
   title: 'Login | CommerceFlow',
-  description: 'Log in to your CommerceFlow account.', // Updated description
+  description: 'Log in to your CommerceFlow account.',
 };
 
 export default function LoginPage() {
   return (
-    <div className="container mx-auto flex min-h-[calc(100vh-200px)] flex-col items-center justify-center py-12">
-      <Card className="w-full max-w-md shadow-xl">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-headline">Log In</CardTitle> {/* Updated title */}
-          <CardDescription>Enter your email and password to access your account.</CardDescription> {/* Updated description */}
-        </CardHeader>
-        <CardContent>
-          <LoginForm />
-          <p className="mt-6 text-center text-sm text-muted-foreground">
-            Don't have an account?{' '} {/* Changed from "Want to create an account with a password?" */}
-            <Link href="/auth/signup" className="font-medium text-primary hover:underline">
-              Sign Up
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
+    <div className="bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center min-h-screen relative overflow-hidden p-4">
+      {/* Animated decorative blobs */}
+      <div className="absolute -top-20 -left-20 w-72 h-72 bg-pink-500/30 rounded-full filter blur-3xl opacity-50 animate-pulse"></div>
+      <div className="absolute -bottom-20 -right-20 w-96 h-96 bg-sky-500/30 rounded-full filter blur-3xl opacity-50 animate-pulse animation-delay-2000" style={{ animationDelay: '2s' }}></div>
+      <div className="absolute top-1/3 left-1/4 w-60 h-60 bg-purple-500/20 rounded-full filter blur-3xl opacity-40 animate-pulse animation-delay-4000" style={{ animationDelay: '4s' }}></div>
+
+      <div className="z-10 w-full max-w-md">
+        <LoginForm />
+      </div>
     </div>
   );
 }
