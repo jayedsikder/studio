@@ -13,7 +13,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { toast } from '@/hooks/use-toast';
 import { Loader2, UserPlus, User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 
-import { getAuth, createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth";
+import { getAuth, createUserWithEmailAndPassword, updateProfile, sendEmailVerification, signOut } from "firebase/auth"; // Added signOut
 import { app } from "@/lib/firebase";
 
 const signUpSchema = z.object({
@@ -50,12 +50,18 @@ export function SignUpForm() {
       if (userCredential.user) {
         await updateProfile(userCredential.user, { displayName: `${data.firstName} ${data.lastName}` });
         await sendEmailVerification(userCredential.user);
+        
+        // Sign out the user immediately after sending verification email
+        await signOut(auth); 
+        
         toast({
           title: "Registration Almost Complete!",
           description: "Please check your email (and spam folder) for a verification link. You must verify your email before logging in.",
           duration: 9000, 
         });
         form.reset(); 
+        // Optionally, redirect to login page or a "please verify" page
+        // router.push('/auth/login'); 
       } else {
         throw new Error("User creation failed unexpectedly.");
       }
@@ -67,8 +73,8 @@ export function SignUpForm() {
           case "auth/email-already-in-use":
             errorMessage = "This email address is already in use.";
             break;
-          case "auth/weak-password":
-            errorMessage = "The password is too weak. It must be at least 6 characters long.";
+          case "auth/weak-password": // Firebase default min is 6, schema is 8. Keep schema.
+            errorMessage = "The password is too weak. It must be at least 8 characters long.";
             break;
           case "auth/invalid-email":
             errorMessage = "The email address is not valid.";
