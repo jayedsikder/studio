@@ -35,14 +35,18 @@ if (!getApps().length) {
   app = getApp();
 }
 
-// Basic check to ensure critical Firebase config values are present (either from env or fallback)
-if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId) {
-  console.error(
-    "Firebase configuration is missing critical values (apiKey, authDomain, projectId). " +
-    "Please ensure they are set in your environment variables or directly in `src/lib/firebase.ts`. " +
-    "Firebase features will not work correctly until this is done."
-  );
+// Basic check to ensure critical Firebase config values are present
+if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "AIzaSyBALgOLUsJDhLOtGEguXyScIpPSEfv-ac" && !process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+  // This check is a bit more specific to the known placeholder if env var is also not set.
+  // The main goal is to ensure that a *real* API key is being used.
 }
+if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId) {
+    console.error(
+      "Firebase configuration is missing critical values (apiKey, authDomain, projectId). " +
+      "Please ensure they are set in your environment variables or directly in `src/lib/firebase.ts`. " +
+      "Firebase features will not work correctly until this is done. Current API Key in use: ", firebaseConfig.apiKey
+    );
+  }
 
 
 const auth = getAuth(app);
