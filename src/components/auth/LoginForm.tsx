@@ -11,9 +11,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, LogInIcon } from 'lucide-react';
+import { Loader2, LogInIcon, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 
-import { getAuth, signInWithEmailAndPassword, signOut } from "firebase/auth"; // Added signOut
+import { getAuth, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { app } from "@/lib/firebase";
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -27,7 +27,8 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export function LoginForm() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const { user: authContextUser } = useAuth(); // Renamed to avoid conflict
+  const [showPassword, setShowPassword] = useState(false);
+  const { user: authContextUser } = useAuth();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -49,8 +50,7 @@ export function LoginForm() {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
       
       if (!userCredential.user.emailVerified) {
-        // If email is not verified, sign the user out again and show a message.
-        await signOut(auth); // Sign out the user
+        await signOut(auth);
         toast({
           title: "Login Failed",
           description: "Your email address has not been verified. Please check your email (and spam folder) for the verification link.",
@@ -58,10 +58,9 @@ export function LoginForm() {
           duration: 9000,
         });
         setIsLoading(false);
-        return; // Stop further execution
+        return;
       }
 
-      // Email is verified, proceed with login
       toast({
         title: "Login Successful!",
         description: `Welcome back, ${userCredential.user.email}!`,
@@ -108,7 +107,10 @@ export function LoginForm() {
             <FormItem>
               <FormLabel>Email Address</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="you@example.com" {...field} />
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Input type="email" placeholder="you@example.com" {...field} className="pl-10" />
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -121,7 +123,25 @@ export function LoginForm() {
             <FormItem>
               <FormLabel>Password</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Input 
+                    type={showPassword ? "text" : "password"} 
+                    placeholder="••••••••" 
+                    {...field} 
+                    className="pl-10 pr-10"
+                  />
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="icon" 
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </Button>
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>

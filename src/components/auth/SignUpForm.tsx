@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, UserPlus } from 'lucide-react';
+import { Loader2, UserPlus, User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 
 import { getAuth, createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth";
 import { app } from "@/lib/firebase";
@@ -28,6 +28,7 @@ type SignUpFormValues = z.infer<typeof signUpSchema>;
 export function SignUpForm() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<SignUpFormValues>({
     resolver: zodResolver(signUpSchema),
@@ -52,10 +53,9 @@ export function SignUpForm() {
         toast({
           title: "Registration Almost Complete!",
           description: "Please check your email (and spam folder) for a verification link. You must verify your email before logging in.",
-          duration: 9000, // Longer duration for this important message
+          duration: 9000, 
         });
         form.reset(); 
-        // router.push('/auth/login'); // Don't redirect immediately, let them see the message.
       } else {
         throw new Error("User creation failed unexpectedly.");
       }
@@ -68,7 +68,7 @@ export function SignUpForm() {
             errorMessage = "This email address is already in use.";
             break;
           case "auth/weak-password":
-            errorMessage = "The password is too weak. It must be at least 6 characters long."; // Firebase default is 6, zod schema is 8
+            errorMessage = "The password is too weak. It must be at least 6 characters long.";
             break;
           case "auth/invalid-email":
             errorMessage = "The email address is not valid.";
@@ -99,7 +99,10 @@ export function SignUpForm() {
               <FormItem>
                 <FormLabel>First Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="John" {...field} />
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input placeholder="John" {...field} className="pl-10" />
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -112,7 +115,10 @@ export function SignUpForm() {
               <FormItem>
                 <FormLabel>Last Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="Doe" {...field} />
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input placeholder="Doe" {...field} className="pl-10" />
+                  </div>
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -126,7 +132,10 @@ export function SignUpForm() {
             <FormItem>
               <FormLabel>Email Address</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="you@example.com" {...field} />
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Input type="email" placeholder="you@example.com" {...field} className="pl-10" />
+                </div>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -139,7 +148,25 @@ export function SignUpForm() {
             <FormItem>
               <FormLabel>Password</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                  <Input 
+                    type={showPassword ? "text" : "password"} 
+                    placeholder="••••••••" 
+                    {...field} 
+                    className="pl-10 pr-10"
+                  />
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="icon" 
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </Button>
+                </div>
               </FormControl>
               <FormDescription>
                 Must be at least 8 characters.
