@@ -46,7 +46,7 @@ if (!getApps().length) {
   } catch (error) {
     console.error("%cError initializing Firebase app:", "color: red; font-weight: bold;", error);
     // Re-throw the error if you want to ensure it stops execution or is caught elsewhere
-    // throw error; 
+    // throw error;
   }
 } else {
   app = getApp();
@@ -84,7 +84,7 @@ const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
 if (app && recaptchaSiteKey) { // Ensure app is initialized
   try {
     // Pass `app` to initializeAppCheck
-    const appCheck = initializeAppCheck(app, { 
+    const appCheck = initializeAppCheck(app, {
       provider: new ReCaptchaV3Provider(recaptchaSiteKey),
       isTokenAutoRefreshEnabled: true, // Recommended to keep tokens fresh
     });
