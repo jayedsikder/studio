@@ -13,28 +13,23 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { toast } from '@/hooks/use-toast';
 import { Loader2, LogInIcon } from 'lucide-react';
 
-// For Firebase (Scenario B), you'd import:
-// import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
-// import { app } from "@/lib/firebase"; // Assuming firebase is initialized in lib/firebase.ts
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { app } from "@/lib/firebase"; 
 // Potentially a context for managing auth state:
 // import { useAuth } from '@/contexts/AuthContext'; // You would create this
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
-  password: z.string().min(1, { message: "Password cannot be empty." }), // Basic check, backend handles strength
+  password: z.string().min(1, { message: "Password cannot be empty." }), 
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
-// IMPORTANT: Replace this string with your live backend API's base URL!
-// For example: 'http://localhost:8000' or 'https://api.yourdomain.com'
-const YOUR_ACTUAL_BACKEND_BASE_URL = 'MUST_REPLACE_WITH_YOUR_ACTUAL_BACKEND_BASE_URL';
 
 export function LoginForm() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  // For Scenario A, to manage tokens, you might use a context:
-  // const { login: contextLogin } = useAuth(); // Example
+  // const { login: contextLogin } = useAuth(); // Example if using AuthContext
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -46,88 +41,47 @@ export function LoginForm() {
 
   const onSubmit: SubmitHandler<LoginFormValues> = async (data) => {
     setIsLoading(true);
-
-    if (YOUR_ACTUAL_BACKEND_BASE_URL === 'MUST_REPLACE_WITH_YOUR_ACTUAL_BACKEND_BASE_URL') {
-      toast({
-        title: "Configuration Incomplete",
-        description: "Please replace 'MUST_REPLACE_WITH_YOUR_ACTUAL_BACKEND_BASE_URL' in LoginForm.tsx with your actual backend URL.",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      return;
-    }
-    
-    const loginApiUrl = `${YOUR_ACTUAL_BACKEND_BASE_URL}/auth/login`;
+    const auth = getAuth(app);
 
     try {
-      const response = await fetch(loginApiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+      const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+      // Firebase handles session management internally.
+      // An onAuthStateChanged listener (e.g., in an AuthContext) would typically pick up the user.
+      // if (contextLogin) contextLogin(userCredential.user); // Update context if using one
+      
+      toast({
+        title: "Login Successful!",
+        description: `Welcome back!`, // userCredential.user.email might be null if not set
       });
-
-      const responseData = await response.json(); // Attempt to parse JSON for both success and error
-
-      if (!response.ok) {
-        // Backend returned an error (e.g., 401, 400)
-        const errorMessage = responseData.message || responseData.error || `Login failed with status: ${response.status}`;
-        console.error('Login API Error Response:', responseData);
-        toast({
-          title: "Login Failed",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      } else {
-        // Successful login
-        console.log("Login successful. Tokens received:", responseData);
-        // TODO: Securely store tokens (e.g., in HttpOnly cookies via backend, or in context/localStorage)
-        // Example:
-        // if (responseData.accessToken) localStorage.setItem('accessToken', responseData.accessToken);
-        // if (responseData.refreshToken) localStorage.setItem('refreshToken', responseData.refreshToken);
-        // if (contextLogin) contextLogin(responseData.accessToken, responseData.refreshToken);
-        
-        toast({
-          title: "Login Successful!",
-          description: "Welcome back!",
-        });
-        router.push('/'); // Redirect to home page or dashboard
-      }
+      router.push('/'); // Redirect to home page or dashboard
     } catch (error: any) {
-      // Network error or other issues (e.g., failed to parse JSON if backend sent completely unexpected response)
-      console.error('Login submission error:', error);
+      let errorMessage = "Invalid email or password.";
+      if (error.code) {
+        switch (error.code) {
+          case "auth/user-not-found":
+          case "auth/wrong-password":
+          case "auth/invalid-credential":
+            errorMessage = "Invalid email or password.";
+            break;
+          case "auth/invalid-email":
+            errorMessage = "The email address is not valid.";
+            break;
+          case "auth/user-disabled":
+            errorMessage = "This user account has been disabled.";
+            break;
+          default:
+            errorMessage = error.message || "Failed to log in.";
+        }
+      }
+      console.error("Firebase Login Error:", error);
       toast({
         title: "Login Failed",
-        description: error.message || "An unexpected error occurred. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
-
-    // --- Scenario B: Firebase Authentication (Example) ---
-    // const auth = getAuth(app);
-    // try {
-    //   const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
-    //   // Firebase handles session management internally.
-    //   // onAuthStateChanged in a global listener (e.g., AuthContext) would pick up the user.
-    //   toast({
-    //     title: "Login Successful!",
-    //     description: `Welcome back, ${userCredential.user.email}!`,
-    //   });
-    //   router.push('/');
-    // } catch (error: any) {
-    //   let errorMessage = "Invalid email or password.";
-    //   if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
-    //     errorMessage = "Invalid email or password.";
-    //   }
-    //   toast({
-    //     title: "Login Failed",
-    //     description: errorMessage,
-    //     variant: "destructive",
-    //   });
-    // } finally {
-    //   setIsLoading(false);
-    // }
   };
 
   return (
