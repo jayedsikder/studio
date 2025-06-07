@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -10,26 +11,25 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCart } from '@/contexts/CartContext';
 import { toast } from '@/hooks/use-toast';
-import { CreditCard, Loader2, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Loader2, ShieldCheck, ArrowRight } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import Link from 'next/link';
 
-// Simplified schema for customer info, SSLCommerz handles payment details
+// Updated schema to include phone and match common SSLCommerz requirements
 const checkoutSchema = z.object({
   fullName: z.string().min(2, { message: "Full name must be at least 2 characters." }),
   email: z.string().email({ message: "Invalid email address." }),
+  phone: z.string().min(10, { message: "Phone number must be at least 10 digits." }).regex(/^(?:\+?88)?01[3-9]\d{8}$/, { message: "Please enter a valid Bangladeshi phone number."}),
   address: z.string().min(5, { message: "Address must be at least 5 characters." }),
   city: z.string().min(2, { message: "City must be at least 2 characters." }),
   postalCode: z.string().min(4, { message: "Postal code must be at least 4 characters." }),
-  // TODO: Add phone number field as it's typically required by SSLCommerz
-  // phone: z.string().min(10, { message: "Phone number must be at least 10 digits." }),
 });
 
 type CheckoutFormValues = z.infer<typeof checkoutSchema>;
 
 export function CheckoutForm() {
   const router = useRouter();
-  const { items, totalPrice, clearCart } = useCart();
+  const { items, totalPrice } = useCart(); // Removed clearCart, should be handled post-IPN
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<CheckoutFormValues>({
@@ -37,10 +37,10 @@ export function CheckoutForm() {
     defaultValues: {
       fullName: '',
       email: '',
+      phone: '',
       address: '',
       city: '',
       postalCode: '',
-      // phone: '',
     },
   });
 
@@ -48,7 +48,7 @@ export function CheckoutForm() {
     setIsLoading(true);
 
     const orderData = {
-      items: items.map(item => ({ // SSLCommerz might need specific item format
+      items: items.map(item => ({
         productId: item.id,
         name: item.name,
         quantity: item.quantity,
@@ -58,10 +58,10 @@ export function CheckoutForm() {
       customerInfo: { // Match structure expected by your API endpoint
         fullName: customerData.fullName,
         email: customerData.email,
+        phone: customerData.phone,
         address: customerData.address,
         city: customerData.city,
         postalCode: customerData.postalCode,
-        // phone: customerData.phone, // Add if phone field is implemented
       },
     };
 
@@ -75,34 +75,41 @@ export function CheckoutForm() {
       const responseData = await response.json();
 
       if (!response.ok) {
-        throw new Error(responseData.error || 'Failed to initiate payment session.');
+        // responseData should have { success: false, error: string, details?: string }
+        const errorMessage = responseData.error || 'Failed to initiate payment session.';
+        const errorDetails = responseData.details ? `Details: ${responseData.details}` : 'No specific details provided by server.';
+        // Log the full response for debugging if needed
+        console.error('Failed API Response Data:', responseData);
+        throw new Error(`${errorMessage} ${errorDetails}`.trim());
       }
 
       if (responseData.GatewayPageURL) {
-        // Clear cart before redirecting, or handle this based on IPN later
-        // clearCart(); 
         toast({
           title: "Redirecting to Payment Gateway...",
           description: "You will be redirected to SSLCommerz to complete your payment.",
         });
-        window.location.href = responseData.GatewayPageURL; // Redirect to SSLCommerz
+        window.location.href = responseData.GatewayPageURL;
       } else {
-        throw new Error('Could not retrieve payment gateway URL.');
+        // This case should ideally be handled by the !response.ok block if status is not 200
+        // but as a fallback:
+        console.error('API Response OK, but missing GatewayPageURL:', responseData);
+        throw new Error('Could not retrieve payment gateway URL. Please try again.');
       }
 
     } catch (error: any) {
-      console.error('Checkout Error:', error);
+      console.error('Checkout Form Submit Error:', error);
       toast({
         title: "Checkout Failed",
         description: error.message || "An unexpected error occurred. Please try again.",
         variant: "destructive",
+        duration: 7000, // Longer duration for error messages
       });
       setIsLoading(false);
     }
-    // setIsLoading(false) should not be reached if redirect happens
+    // setIsLoading(false) might not be reached if redirect happens
   };
 
-  if (items.length === 0 && !isLoading) { // Prevent showing this if redirecting
+  if (items.length === 0 && !isLoading) {
     return (
       <div className="text-center py-12">
         <h2 className="text-2xl font-semibold mb-2">Your cart is empty.</h2>
@@ -120,13 +127,13 @@ export function CheckoutForm() {
         <Card className="shadow-lg rounded-lg">
           <CardHeader>
             <CardTitle className="text-2xl font-headline">Checkout Details</CardTitle>
-            <CardDescription>Please fill in your shipping information. You'll be redirected to SSLCommerz for payment.</CardDescription>
+            <CardDescription>Please fill in your information. You'll be redirected to SSLCommerz for payment.</CardDescription>
           </CardHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
               <CardContent className="space-y-6">
                 <fieldset className="space-y-4 p-4 border rounded-md">
-                  <legend className="text-lg font-semibold px-1">Shipping Information</legend>
+                  <legend className="text-lg font-semibold px-1">Customer Information</legend>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
@@ -157,12 +164,25 @@ export function CheckoutForm() {
                   </div>
                   <FormField
                     control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Phone Number</FormLabel>
+                        <FormControl>
+                          <Input type="tel" placeholder="01xxxxxxxxx" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
                     name="address"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Street Address</FormLabel>
                         <FormControl>
-                          <Input placeholder="123 Main St" {...field} />
+                          <Input placeholder="123 Main St, Apt 4B" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -176,7 +196,7 @@ export function CheckoutForm() {
                       <FormItem>
                         <FormLabel>City</FormLabel>
                         <FormControl>
-                          <Input placeholder="Anytown" {...field} />
+                          <Input placeholder="Dhaka" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -189,37 +209,22 @@ export function CheckoutForm() {
                       <FormItem>
                         <FormLabel>Postal Code</FormLabel>
                         <FormControl>
-                          <Input placeholder="12345" {...field} />
+                          <Input placeholder="1200" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                   </div>
-                   {/* TODO: Add Phone Number Field Here - SSLCommerz often requires it 
-                    <FormField
-                      control={form.control}
-                      name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Phone Number</FormLabel>
-                          <FormControl>
-                            <Input type="tel" placeholder="01xxxxxxxxx" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  */}
                 </fieldset>
                 
                 <div className="flex items-center text-sm text-muted-foreground p-3 bg-secondary rounded-md border">
                     <ShieldCheck className="h-6 w-6 mr-3 text-primary flex-shrink-0"/>
-                    <span>You will be redirected to the SSLCommerz secure payment page to enter your payment details. We do not store your card information.</span>
+                    <span>You will be redirected to the SSLCommerz secure payment page. We do not store your card information.</span>
                 </div>
               </CardContent>
               <CardFooter>
-                <Button type="submit" size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-lg py-3" disabled={isLoading}>
+                <Button type="submit" size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-lg py-3" disabled={isLoading || items.length === 0}>
                   {isLoading ? (
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   ) : (
