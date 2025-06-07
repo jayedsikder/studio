@@ -9,13 +9,17 @@ const is_live = process.env.NODE_ENV === 'production'; // Use NODE_ENV to determ
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
 
 export async function POST(req: NextRequest) {
-  if (!store_id || !store_passwd) {
-    console.error("SSLCOMMERZ_STORE_ID or SSLCOMMERZ_STORE_PASSWORD not set in environment variables.");
-    return NextResponse.json({ success: false, error: 'Payment gateway server configuration error. Admin check required.' }, { status: 500 });
-  }
-  if (!baseUrl) {
-    console.error("NEXT_PUBLIC_BASE_URL is not set in environment variables. This is required for callback URLs.");
-    return NextResponse.json({ success: false, error: 'Application base URL configuration error. Admin check required.' }, { status: 500 });
+  // Check for essential environment variables first
+  const missingVars = [];
+  if (!store_id) missingVars.push('SSLCOMMERZ_STORE_ID');
+  if (!store_passwd) missingVars.push('SSLCOMMERZ_STORE_PASSWORD');
+  if (!baseUrl) missingVars.push('NEXT_PUBLIC_BASE_URL');
+
+  if (missingVars.length > 0) {
+    const errorMsg = 'Payment gateway server configuration error. Admin check required.';
+    const detailsMsg = `The following environment variables are missing or not loaded: ${missingVars.join(', ')}. Please check your .env file and restart the server.`;
+    console.error(`${errorMsg} ${detailsMsg}`);
+    return NextResponse.json({ success: false, error: errorMsg, details: detailsMsg }, { status: 500 });
   }
 
   try {
