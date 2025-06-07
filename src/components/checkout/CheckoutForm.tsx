@@ -7,22 +7,22 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCart } from '@/contexts/CartContext';
 import { toast } from '@/hooks/use-toast';
-import { CreditCard, Loader2, ShieldCheck } from 'lucide-react';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { CreditCard, Loader2, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import Link from 'next/link';
 
+// Simplified schema for customer info, SSLCommerz handles payment details
 const checkoutSchema = z.object({
   fullName: z.string().min(2, { message: "Full name must be at least 2 characters." }),
   email: z.string().email({ message: "Invalid email address." }),
   address: z.string().min(5, { message: "Address must be at least 5 characters." }),
   city: z.string().min(2, { message: "City must be at least 2 characters." }),
   postalCode: z.string().min(4, { message: "Postal code must be at least 4 characters." }),
-  cardNumber: z.string().regex(/^(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|6(?:011|5[0-9][0-9])[0-9]{12}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|(?:2131|1800|35\d{3})\d{11})$/, { message: "Invalid card number." }),
-  expiryDate: z.string().regex(/^(0[1-9]|1[0-2])\/\d{2}$/, { message: "Invalid expiry date (MM/YY)." }),
-  cvv: z.string().regex(/^\d{3,4}$/, { message: "Invalid CVV." }),
+  // TODO: Add phone number field as it's typically required by SSLCommerz
+  // phone: z.string().min(10, { message: "Phone number must be at least 10 digits." }),
 });
 
 type CheckoutFormValues = z.infer<typeof checkoutSchema>;
@@ -40,29 +40,69 @@ export function CheckoutForm() {
       address: '',
       city: '',
       postalCode: '',
-      cardNumber: '',
-      expiryDate: '',
-      cvv: '',
+      // phone: '',
     },
   });
 
-  const onSubmit: SubmitHandler<CheckoutFormValues> = async (data) => {
+  const onSubmit: SubmitHandler<CheckoutFormValues> = async (customerData) => {
     setIsLoading(true);
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    console.log('Checkout Data:', data);
-    toast({
-      title: "Payment Successful!",
-      description: "Your order has been placed. (This is a simulation)",
-    });
-    
-    clearCart();
-    router.push('/order-confirmation');
-    setIsLoading(false);
+
+    const orderData = {
+      items: items.map(item => ({ // SSLCommerz might need specific item format
+        productId: item.id,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+      })),
+      totalPrice,
+      customerInfo: { // Match structure expected by your API endpoint
+        fullName: customerData.fullName,
+        email: customerData.email,
+        address: customerData.address,
+        city: customerData.city,
+        postalCode: customerData.postalCode,
+        // phone: customerData.phone, // Add if phone field is implemented
+      },
+    };
+
+    try {
+      const response = await fetch('/api/sslcommerz/initiate-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData),
+      });
+
+      const responseData = await response.json();
+
+      if (!response.ok) {
+        throw new Error(responseData.error || 'Failed to initiate payment session.');
+      }
+
+      if (responseData.GatewayPageURL) {
+        // Clear cart before redirecting, or handle this based on IPN later
+        // clearCart(); 
+        toast({
+          title: "Redirecting to Payment Gateway...",
+          description: "You will be redirected to SSLCommerz to complete your payment.",
+        });
+        window.location.href = responseData.GatewayPageURL; // Redirect to SSLCommerz
+      } else {
+        throw new Error('Could not retrieve payment gateway URL.');
+      }
+
+    } catch (error: any) {
+      console.error('Checkout Error:', error);
+      toast({
+        title: "Checkout Failed",
+        description: error.message || "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+    }
+    // setIsLoading(false) should not be reached if redirect happens
   };
 
-  if (items.length === 0) {
+  if (items.length === 0 && !isLoading) { // Prevent showing this if redirecting
     return (
       <div className="text-center py-12">
         <h2 className="text-2xl font-semibold mb-2">Your cart is empty.</h2>
@@ -80,7 +120,7 @@ export function CheckoutForm() {
         <Card className="shadow-lg rounded-lg">
           <CardHeader>
             <CardTitle className="text-2xl font-headline">Checkout Details</CardTitle>
-            <CardDescription>Please fill in your shipping and payment information.</CardDescription>
+            <CardDescription>Please fill in your shipping information. You'll be redirected to SSLCommerz for payment.</CardDescription>
           </CardHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -156,68 +196,36 @@ export function CheckoutForm() {
                     )}
                   />
                   </div>
+                   {/* TODO: Add Phone Number Field Here - SSLCommerz often requires it 
+                    <FormField
+                      control={form.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Phone Number</FormLabel>
+                          <FormControl>
+                            <Input type="tel" placeholder="01xxxxxxxxx" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  */}
                 </fieldset>
-
-                <fieldset className="space-y-4 p-4 border rounded-md">
-                  <legend className="text-lg font-semibold px-1">Payment Information (Fun Simulation)</legend>
-                  <FormField
-                    control={form.control}
-                    name="cardNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Card Number</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                            <Input placeholder="•••• •••• •••• ••••" {...field} className="pl-10"/>
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="expiryDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Expiry Date</FormLabel>
-                        <FormControl>
-                          <Input placeholder="MM/YY" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="cvv"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>CVV</FormLabel>
-                        <FormControl>
-                          <Input placeholder="123" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  </div>
-                  <div className="flex items-center text-sm text-muted-foreground p-2 bg-secondary rounded-md">
-                    <ShieldCheck className="h-5 w-5 mr-2 text-green-500"/>
-                    <span>This is a simulated payment. No real transaction will occur.</span>
-                  </div>
-                </fieldset>
+                
+                <div className="flex items-center text-sm text-muted-foreground p-3 bg-secondary rounded-md border">
+                    <ShieldCheck className="h-6 w-6 mr-3 text-primary flex-shrink-0"/>
+                    <span>You will be redirected to the SSLCommerz secure payment page to enter your payment details. We do not store your card information.</span>
+                </div>
               </CardContent>
               <CardFooter>
                 <Button type="submit" size="lg" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-lg py-3" disabled={isLoading}>
                   {isLoading ? (
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   ) : (
-                    <CreditCard className="mr-2 h-5 w-5" />
+                    <ArrowRight className="mr-2 h-5 w-5" />
                   )}
-                  {isLoading ? 'Processing...' : `Pay $${totalPrice.toFixed(2)} (Simulated)`}
+                  {isLoading ? 'Processing...' : `Proceed to Secure Payment ($${totalPrice.toFixed(2)})`}
                 </Button>
               </CardFooter>
             </form>
