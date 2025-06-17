@@ -3,7 +3,7 @@ export function Footer() {
     <footer className="bg-card border-t border-border mt-auto">
       <div className="container mx-auto px-4 py-6 text-center text-muted-foreground">
         <p>&copy; {new Date().getFullYear()} CommerceFlow. All rights reserved.</p>
-        <p className="text-sm">Powered by Next.js & Firebase add Jayed Sikder</p>
+        <p className="text-sm">Powered by  Jayed Sikder</p>
       </div>
     </footer>
   );
