@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
@@ -7,7 +8,8 @@ import { getProducts as fetchAllProducts, getCategories, getProductsByCategory }
 import type { Product } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Zap } from 'lucide-react';
+import { Zap, Download } from 'lucide-react';
+import Link from 'next/link';
 
 export default function HomePage() {
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -85,6 +87,22 @@ export default function HomePage() {
           <Zap className="h-10 w-10" /> Welcome to CommerceFlow
         </h1>
         <p className="text-xl text-muted-foreground">Discover amazing digital products and services.</p>
+        <div className="mt-6">
+          {/* 
+            Placeholder Download Button: 
+            You'll need to manually ZIP your project and host it. 
+            Then, replace the '#' in the href below with the actual download link.
+          */}
+          <Button asChild variant="outline" size="lg">
+            <Link href="#"> 
+              <Download className="mr-2 h-5 w-5" />
+              Download Project ZIP (Placeholder)
+            </Link>
+          </Button>
+           <p className="text-sm text-muted-foreground mt-2">
+            (You need to replace the link above with your actual project ZIP URL after hosting it)
+          </p>
+        </div>
       </div>
 
       <SearchBar 
