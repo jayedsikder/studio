@@ -1,12 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-// No longer need crypto for hash validation if using Validation API
-// import crypto from 'crypto';
-import axios from 'axios'; // Import axios to make HTTP requests
 
-// It's recommended to use environment variables for sensitive information
-const STORE_ID = process.env.SSLCOMMERZ_STORE_ID || 'laiju6802257f41cec'; // Replace with environment variable
-const STORE_PASSWORD = process.env.SSLCOMMERZ_STORE_PASSWORD || 'laiju6802257f41cec@ssl'; // Replace with environment variable
-const IS_LIVE = process.env.NODE_ENV === 'production'; // Use live API in production
+import { NextRequest, NextResponse } from 'next/server';
+import axios from 'axios'; 
+
+// CRITICAL: These MUST be set in your environment variables.
+const STORE_ID = process.env.SSLCOMMERZ_STORE_ID;
+const STORE_PASSWORD = process.env.SSLCOMMERZ_STORE_PASSWORD;
+const IS_LIVE = process.env.NODE_ENV === 'production'; 
 
 // Determine the correct validation API URL based on the environment
 const VALIDATION_API_URL = IS_LIVE
@@ -15,21 +14,28 @@ const VALIDATION_API_URL = IS_LIVE
 
 
 export async function POST(req: NextRequest) {
+  if (!STORE_ID || !STORE_PASSWORD) {
+    console.error('CRITICAL SSLCOMMERZ IPN ERROR: STORE_ID or STORE_PASSWORD not configured in environment variables.');
+    // Do not provide detailed error to SSLCommerz, just indicate server error.
+    return NextResponse.json({ success: false, error: 'IPN Configuration Error on Server.' }, { status: 500 });
+  }
+
   try {
-    const data = await req.json(); // Assuming SSLCommerz sends JSON
+    const data = await req.json(); 
+    console.log('SSLCommerz IPN received - Raw Data:', data);
 
-    console.log('SSLCommerz IPN received:', data);
+    // Basic check for essential IPN fields from SSLCommerz
+    // Note: SSLCommerz might send form-urlencoded data for IPN. Adjust if req.json() fails.
+    // If it's form-urlencoded, you might need: const data = Object.fromEntries(await req.formData());
+    // For now, assuming JSON as per some SSLCommerz docs. If issues, check Content-Type of IPN request.
+    const { tran_id, val_id, status, amount, currency, bank_tran_id, card_type, card_brand, store_amount } = data;
 
-    const { tran_id, val_id, status, amount, currency } = data;
-
-    if (!tran_id || !val_id || !status || !amount || !currency) {
-        console.error('IPN data missing mandatory fields');
-        return NextResponse.json({ success: false, error: 'Missing mandatory IPN data' }, { status: 400 });
+    if (!tran_id || !val_id || !status ) { // Amount and currency will be validated against API response
+        console.error('IPN data missing mandatory fields (tran_id, val_id, status):', data);
+        return NextResponse.json({ success: false, error: 'Missing mandatory IPN data fields from SSLCommerz' }, { status: 400 });
     }
 
-
-    // --- IPN Validation Logic using Order Validation API ---
-    console.log(`Validating Transaction ID: ${tran_id} with Validation ID: ${val_id}`);
+    console.log(`Validating IPN for Transaction ID: ${tran_id} with Validation ID: ${val_id}`);
 
     try {
         const validationResponse = await axios.get(VALIDATION_API_URL, {
@@ -37,103 +43,118 @@ export async function POST(req: NextRequest) {
                 val_id: val_id,
                 store_id: STORE_ID,
                 store_passwd: STORE_PASSWORD,
-                format: 'json' // Requesting JSON format
+                format: 'json' 
             }
         });
 
         const validationData = validationResponse.data;
+        console.log('SSLCommerz Validation API Response:', JSON.stringify(validationData, null, 2));
 
-        console.log('SSLCommerz Validation API Response:', validationData);
-
-        // Check API connection status
         if (validationData.APIConnect !== 'DONE') {
-            console.error('Validation API connection failed:', validationData.APIConnect);
-             // Depending on your strategy, you might want to retry or log this error
-             // Returning 500 might cause SSLCommerz to retry IPN
+            console.error('Validation API connection failed:', validationData.APIConnect, 'Full Response:', validationData);
              return NextResponse.json({ success: false, error: 'Validation API connection failed' }, { status: 500 });
         }
 
-        // Check the transaction status from the validation API response
+        // --- Core Validation Checks ---
+        // 1. Transaction ID from IPN (data.tran_id) must match Validation API's tran_id (validationData.tran_id)
+        if (data.tran_id !== validationData.tran_id) {
+            console.error(`IPN tran_id (${data.tran_id}) does not match Validation API tran_id (${validationData.tran_id}). Potential tampering.`);
+            return NextResponse.json({ success: false, error: 'Transaction ID mismatch during validation.' }, { status: 400 });
+        }
+        
+        // 2. Status from Validation API is the source of truth
         const validatedStatus = validationData.status;
-        const validatedAmount = parseFloat(validationData.amount); // Parse to number
+        const validatedAmount = parseFloat(validationData.amount); 
         const validatedCurrency = validationData.currency;
+        const validatedStoreAmount = parseFloat(validationData.store_amount); // Amount after SSLCommerz fees
 
-        // IMPORTANT Security Checks:
-        // 1. Verify the transaction ID matches the one in your database
-        // 2. Verify the amount and currency match the order in your database
-        // 3. Check the transaction status from the validation API response
-
-        // TODO: Replace with your database logic to fetch the order by tran_id
-        // const order = await findOrderByTransactionId(tran_id);
+        // --- Database / Order Logic (Placeholders) ---
+        // TODO: Fetch your order from your database using tran_id (which is validationData.tran_id)
+        // const order = await findOrderInYourDB(validationData.tran_id);
         // if (!order) {
-        //     console.error(`Order not found for transaction ID: ${tran_id}`);
-        //     return NextResponse.json({ success: false, error: 'Order not found' }, { status: 404 }); // Or a status that doesn't cause IPN retries if order not found
+        //     console.error(`Order not found in DB for validated transaction ID: ${validationData.tran_id}`);
+        //     // Decide if this should be a 404 or 500. SSLCommerz might retry on 500.
+        //     // If order genuinely not found, maybe a 200 to stop retries but log as major issue.
+        //     return NextResponse.json({ success: true, message: 'IPN for unknown transaction processed to stop retries.' }, { status: 200 });
         // }
 
-        // TODO: Implement rigorous amount and currency validation against your order data
+        // TODO: Compare validatedAmount and validatedCurrency with order.totalAmount and order.currency from your DB.
         // if (validatedAmount !== order.totalAmount || validatedCurrency !== order.currency) {
-        //     console.error(`Amount or currency mismatch for transaction ID: ${tran_id}`);
-        //     // Log this potential fraud attempt
-        //     return NextResponse.json({ success: false, error: 'Amount or currency mismatch' }, { status: 400 });
+        //     console.error(`Amount/Currency mismatch for tran_id ${validationData.tran_id}. IPN: ${validatedAmount} ${validatedCurrency}, Order: ${order.totalAmount} ${order.currency}. Potential tampering.`);
+        //     return NextResponse.json({ success: false, error: 'Amount or currency mismatch.' }, { status: 400 });
+        // }
+        
+        // Check if order is already processed to prevent duplicate processing
+        // if (order.status === 'paid' && (validatedStatus === 'VALID' || validatedStatus === 'VALIDATED')) {
+        //    console.log(`Order ${validationData.tran_id} already marked as paid. Skipping update.`);
+        //    return NextResponse.json({ success: true, message: 'IPN received, order already processed.' }, { status: 200 });
         // }
 
 
-        // --- Order Status Update Logic based on Validated Status ---
-        // Based on SSLCommerz documentation, 'VALID' and 'VALIDATED' mean successful payment.
-        // You might also need to handle 'PENDING' if you want to track that state.
+        // --- Update Order Status Based on Validated Status ---
         switch (validatedStatus) {
           case 'VALID':
           case 'VALIDATED':
-            // Payment successful and validated
-            // TODO: Update your database: mark order as paid, record transaction details (bank_tran_id, card_type, etc.)
-            // await updateOrderStatus(order.id, 'paid', validationData);
-            console.log(`Order ${tran_id} successfully validated and marked as paid.`);
+            console.log(`Payment SUCCESSFUL and VALIDATED for tran_id: ${validationData.tran_id}. Amount: ${validatedAmount} ${validatedCurrency}.`);
+            // TODO: Update your database: mark order as paid.
+            // Record details like validationData.bank_tran_id, validationData.card_type, validationData.store_amount etc.
+            // await updateOrderStatusInYourDB(order.id, 'paid', validationData);
+            // TODO: Send confirmation email to customer.
+            // TODO: Fulfill order (e.g., grant access to digital product).
             break;
           case 'PENDING':
-             // Transaction is still pending
-             // TODO: Update your database: mark order as pending payment or similar.
-             // This might require future checks or relying on a later IPN.
-             console.log(`Order ${tran_id} status is pending.`);
+             console.log(`Payment PENDING for tran_id: ${validationData.tran_id}.`);
+             // TODO: Update order status to 'pending' or similar in your DB.
+             // await updateOrderStatusInYourDB(order.id, 'pending', validationData);
              break;
           case 'FAILED':
+             console.log(`Payment FAILED for tran_id: ${validationData.tran_id}. Reason (if any): ${validationData.error || 'No reason provided.'}`);
+             // TODO: Update order status to 'failed' in your DB.
+             // await updateOrderStatusInYourDB(order.id, 'failed', validationData);
+             break;
           case 'CANCELLED':
-          case 'EXPIRED':
-          case 'UNATTEMPTED':
-            // Payment failed or cancelled
-            // TODO: Update your database: mark order as failed, cancelled, etc.
-            // await updateOrderStatus(order.id, validatedStatus.toLowerCase());
-            console.log(`Order ${tran_id} status is ${validatedStatus}.`);
+            console.log(`Payment CANCELLED for tran_id: ${validationData.tran_id}.`);
+            // TODO: Update order status to 'cancelled' in your DB.
+            // await updateOrderStatusInYourDB(order.id, 'cancelled', validationData);
             break;
+          case 'EXPIRED':
+             console.log(`Payment Session EXPIRED for tran_id: ${validationData.tran_id}.`);
+             // TODO: Update order status to 'expired' or 'failed' in your DB.
+             // await updateOrderStatusInYourDB(order.id, 'expired', validationData);
+             break;
+          case 'UNATTEMPTED':
+             console.log(`Payment UNATTEMPTED for tran_id: ${validationData.tran_id}.`);
+             // TODO: Update order status to 'failed' or similar in your DB.
+             // await updateOrderStatusInYourDB(order.id, 'failed', validationData);
+             break;
           default:
-            // Handle unknown or unhandled statuses
-            console.warn(`Order ${tran_id} has unhandled validated status: ${validatedStatus}`);
-            // Optionally update order status to reflect the unhandled state
-             // await updateOrderStatus(order.id, 'unhandled_status', { sslcommerz_status: validatedStatus });
+            console.warn(`Order ${validationData.tran_id} has an UNHANDLED validated status from SSLCommerz: ${validatedStatus}`);
+            // TODO: Potentially update order to an 'unknown_error' status.
+            // await updateOrderStatusInYourDB(order.id, 'unknown_ssl_status', { sslcommerz_status: validatedStatus });
             break;
         }
 
-        // --- End Order Status Update Logic ---
+        // SSLCommerz expects a 200 OK to confirm IPN receipt and processing.
+        return NextResponse.json({ success: true, message: 'IPN received and processed successfully.' }, { status: 200 });
 
-        // Send a success response back to SSLCommerz
-        // SSLCommerz expects a 200 OK response to confirm IPN received and processed.
-        return NextResponse.json({ success: true, message: 'IPN received and validated' }, { status: 200 });
-
-    } catch (validationError) {
-        console.error('Error calling SSLCommerz Validation API:', validationError);
+    } catch (validationError: any) {
+        console.error('Error during SSLCommerz Validation API call:', validationError?.response?.data || validationError?.message || validationError);
         // If validation API call fails, treat as processing error.
-        return NextResponse.json({ success: false, error: 'Error validating transaction with SSLCommerz' }, { status: 500 });
+        // SSLCommerz might retry IPN on 500.
+        return NextResponse.json({ success: false, error: 'Error validating transaction with SSLCommerz.' }, { status: 500 });
     }
 
-
-  } catch (error) {
-    console.error('Error processing SSLCommerz IPN:', error);
-    // Send an error response back to SSLCommerz
-    // Returning a non-200 status might cause SSLCommerz to retry the IPN.
-    return NextResponse.json({ success: false, error: 'Failed to process IPN' }, { status: 500 });
+  } catch (error: any) {
+    console.error('Error processing SSLCommerz IPN raw request:', error);
+    // This could be due to req.json() failing if SSLCommerz sends form-data
+    // If you suspect this, log req.headers.get('content-type')
+    // console.error('IPN Content-Type:', req.headers.get('content-type'));
+    return NextResponse.json({ success: false, error: 'Failed to process IPN due to server error.' }, { status: 500 });
   }
 }
 
-// You might also need a GET handler if SSLCommerz sends test requests via GET
+// Optional: GET handler if SSLCommerz sends test requests via GET or for simple checks
 // export async function GET(req: NextRequest) {
-//   return NextResponse.json({ message: 'IPN listener is active' }, { status: 200 });
+//   return NextResponse.json({ message: 'SSLCommerz IPN Listener is active. POST requests are expected for actual IPNs.' }, { status: 200 });
 // }
+
