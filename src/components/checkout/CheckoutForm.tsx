@@ -75,33 +75,41 @@ export function CheckoutForm() {
         body: JSON.stringify(orderData),
       });
 
-      // Try to parse the response body as JSON, regardless of response.ok for now
-      // This is because even error responses from our API should be JSON.
-      const responseData = await response.json();
-
       if (!response.ok) {
-        let errorMessage = 'Failed to initiate payment session.';
-        let errorDetails = 'No specific details provided by server.';
+        let errorMessage = 'Failed to initiate payment session.'; // Default error message
+        let errorDetails = 'No specific details provided by server.'; // Default error details
+        let responseData: any = null;
 
-        if (responseData && typeof responseData === 'object') {
-          console.error('Failed API Response Data:', responseData); // This is line 83 from the error
-          // Check if responseData is an empty object
-          if (Object.keys(responseData).length === 0 && responseData.constructor === Object) {
-            errorDetails = 'The server returned an empty error response. Please check server logs for more details.';
+        try {
+          responseData = await response.json();
+          console.error('Failed API Response Data:', responseData); // Logs the actual response data
+
+          if (responseData && typeof responseData === 'object') {
+            errorMessage = responseData.error || errorMessage; // Use responseData.error if available, else default
+
+            if (Object.keys(responseData).length === 0 && responseData.constructor === Object) {
+              errorDetails = 'The server returned an empty error response. Please check server logs for more details.';
+            } else if (responseData.details) {
+              errorDetails = `Details: ${responseData.details}`;
+            }
+            // If responseData.error was present, it's used for errorMessage.
+            // If responseData.details was present (and not an empty object), it's used for errorDetails.
+            // If it was an empty object, errorDetails is specifically set.
           } else {
-            errorMessage = responseData.error || errorMessage;
-            errorDetails = responseData.details ? `Details: ${responseData.details}` : errorDetails;
+            // responseData was not a valid object or was null/empty after .json()
+            errorDetails = `Received an unexpected response format from the server (status: ${response.status}). Check server logs.`;
           }
-        } else {
-          // This case would be if responseData is not an object (e.g. null, or if .json() failed and was caught)
-          // For the reported error, responseData IS an object ({}), so this path might not be hit for that specific error.
-          console.error('Failed API Response Data was not a valid object or was empty:', responseData);
-          errorDetails = `Received an unexpected response format from the server (status: ${response.status}). Check server logs.`;
+        } catch (jsonError) {
+          // response.json() failed, meaning the body wasn't valid JSON
+          console.error('Failed to parse error response as JSON:', jsonError);
+          errorDetails = `The server returned a non-JSON error response (status: ${response.status}). Check server logs.`;
         }
+        
         throw new Error(`${errorMessage} ${errorDetails}`.trim());
       }
 
       // If response.ok is true, proceed with success logic
+      const responseData = await response.json(); // Re-parse for success case, or handle if already parsed
       if (responseData.GatewayPageURL) {
         toast({
           title: "Redirecting to Payment Gateway...",
@@ -279,3 +287,4 @@ export function CheckoutForm() {
     </div>
   );
 }
+
