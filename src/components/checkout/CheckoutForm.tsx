@@ -15,21 +15,24 @@ import { Loader2, ShieldCheck, ArrowRight } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import Link from 'next/link';
 
-// Updated schema to include phone and match common SSLCommerz requirements
+// Updated schema to include a more generic phone number validation
 const checkoutSchema = z.object({
   fullName: z.string().min(2, { message: "Full name must be at least 2 characters." }),
   email: z.string().email({ message: "Invalid email address." }),
-  phone: z.string().min(10, { message: "Phone number must be at least 10 digits." }).regex(/^(?:\+?88)?01[3-9]\d{8}$/, { message: "Please enter a valid Bangladeshi phone number."}),
+  phone: z.string()
+    .min(7, { message: "Phone number must be at least 7 digits." })
+    .max(20, { message: "Phone number cannot exceed 20 digits." })
+    .regex(/^\+?[0-9\s-]{7,20}$/, { message: "Please enter a valid phone number (digits, spaces, hyphens, optional leading '+')."}),
   address: z.string().min(5, { message: "Address must be at least 5 characters." }),
   city: z.string().min(2, { message: "City must be at least 2 characters." }),
-  postalCode: z.string().min(4, { message: "Postal code must be at least 4 characters." }),
+  postalCode: z.string().min(2, { message: "Postal code must be at least 2 characters." }), // Made postal code more generic too
 });
 
 type CheckoutFormValues = z.infer<typeof checkoutSchema>;
 
 export function CheckoutForm() {
   const router = useRouter();
-  const { items, totalPrice } = useCart(); // Removed clearCart, should be handled post-IPN
+  const { items, totalPrice } = useCart();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<CheckoutFormValues>({
@@ -55,7 +58,7 @@ export function CheckoutForm() {
         price: item.price,
       })),
       totalPrice,
-      customerInfo: { // Match structure expected by your API endpoint
+      customerInfo: {
         fullName: customerData.fullName,
         email: customerData.email,
         phone: customerData.phone,
@@ -75,10 +78,8 @@ export function CheckoutForm() {
       const responseData = await response.json();
 
       if (!response.ok) {
-        // responseData should have { success: false, error: string, details?: string }
         const errorMessage = responseData.error || 'Failed to initiate payment session.';
         const errorDetails = responseData.details ? `Details: ${responseData.details}` : 'No specific details provided by server.';
-        // Log the full response for debugging if needed
         console.error('Failed API Response Data:', responseData);
         throw new Error(`${errorMessage} ${errorDetails}`.trim());
       }
@@ -90,8 +91,6 @@ export function CheckoutForm() {
         });
         window.location.href = responseData.GatewayPageURL;
       } else {
-        // This case should ideally be handled by the !response.ok block if status is not 200
-        // but as a fallback:
         console.error('API Response OK, but missing GatewayPageURL:', responseData);
         throw new Error('Could not retrieve payment gateway URL. Please try again.');
       }
@@ -102,11 +101,10 @@ export function CheckoutForm() {
         title: "Checkout Failed",
         description: error.message || "An unexpected error occurred. Please try again.",
         variant: "destructive",
-        duration: 7000, // Longer duration for error messages
+        duration: 7000,
       });
       setIsLoading(false);
     }
-    // setIsLoading(false) might not be reached if redirect happens
   };
 
   if (items.length === 0 && !isLoading) {
@@ -169,7 +167,7 @@ export function CheckoutForm() {
                       <FormItem>
                         <FormLabel>Phone Number</FormLabel>
                         <FormControl>
-                          <Input type="tel" placeholder="01xxxxxxxxx" {...field} />
+                          <Input type="tel" placeholder="e.g. +1 123 456 7890" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -196,7 +194,7 @@ export function CheckoutForm() {
                       <FormItem>
                         <FormLabel>City</FormLabel>
                         <FormControl>
-                          <Input placeholder="Dhaka" {...field} />
+                          <Input placeholder="City" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -209,7 +207,7 @@ export function CheckoutForm() {
                       <FormItem>
                         <FormLabel>Postal Code</FormLabel>
                         <FormControl>
-                          <Input placeholder="1200" {...field} />
+                          <Input placeholder="Postal Code" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -263,3 +261,5 @@ export function CheckoutForm() {
     </div>
   );
 }
+
+    
