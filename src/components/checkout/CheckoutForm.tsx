@@ -15,17 +15,17 @@ import { Loader2, ShieldCheck, ArrowRight } from 'lucide-react';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import Link from 'next/link';
 
-// Updated schema to include a more generic phone number validation
+// Updated schema for more generic phone and postal code
 const checkoutSchema = z.object({
   fullName: z.string().min(2, { message: "Full name must be at least 2 characters." }),
   email: z.string().email({ message: "Invalid email address." }),
   phone: z.string()
     .min(7, { message: "Phone number must be at least 7 digits." })
     .max(20, { message: "Phone number cannot exceed 20 digits." })
-    .regex(/^\+?[0-9\s-]{7,20}$/, { message: "Please enter a valid phone number (digits, spaces, hyphens, optional leading '+')."}),
+    .regex(/^\+?[0-9\s-()]{7,20}$/, { message: "Please enter a valid phone number (digits, spaces, hyphens, parentheses, optional leading '+')."}),
   address: z.string().min(5, { message: "Address must be at least 5 characters." }),
   city: z.string().min(2, { message: "City must be at least 2 characters." }),
-  postalCode: z.string().min(2, { message: "Postal code must be at least 2 characters." }), // Made postal code more generic too
+  postalCode: z.string().min(2, { message: "Postal code must be at least 2 characters." }).max(20, {message: "Postal code cannot exceed 20 characters."}),
 });
 
 type CheckoutFormValues = z.infer<typeof checkoutSchema>;
@@ -75,15 +75,33 @@ export function CheckoutForm() {
         body: JSON.stringify(orderData),
       });
 
+      // Try to parse the response body as JSON, regardless of response.ok for now
+      // This is because even error responses from our API should be JSON.
       const responseData = await response.json();
 
       if (!response.ok) {
-        const errorMessage = responseData.error || 'Failed to initiate payment session.';
-        const errorDetails = responseData.details ? `Details: ${responseData.details}` : 'No specific details provided by server.';
-        console.error('Failed API Response Data:', responseData);
+        let errorMessage = 'Failed to initiate payment session.';
+        let errorDetails = 'No specific details provided by server.';
+
+        if (responseData && typeof responseData === 'object') {
+          console.error('Failed API Response Data:', responseData); // This is line 83 from the error
+          // Check if responseData is an empty object
+          if (Object.keys(responseData).length === 0 && responseData.constructor === Object) {
+            errorDetails = 'The server returned an empty error response. Please check server logs for more details.';
+          } else {
+            errorMessage = responseData.error || errorMessage;
+            errorDetails = responseData.details ? `Details: ${responseData.details}` : errorDetails;
+          }
+        } else {
+          // This case would be if responseData is not an object (e.g. null, or if .json() failed and was caught)
+          // For the reported error, responseData IS an object ({}), so this path might not be hit for that specific error.
+          console.error('Failed API Response Data was not a valid object or was empty:', responseData);
+          errorDetails = `Received an unexpected response format from the server (status: ${response.status}). Check server logs.`;
+        }
         throw new Error(`${errorMessage} ${errorDetails}`.trim());
       }
 
+      // If response.ok is true, proceed with success logic
       if (responseData.GatewayPageURL) {
         toast({
           title: "Redirecting to Payment Gateway...",
@@ -92,7 +110,7 @@ export function CheckoutForm() {
         window.location.href = responseData.GatewayPageURL;
       } else {
         console.error('API Response OK, but missing GatewayPageURL:', responseData);
-        throw new Error('Could not retrieve payment gateway URL. Please try again.');
+        throw new Error('Could not retrieve payment gateway URL from a successful server response. Please try again or contact support.');
       }
 
     } catch (error: any) {
@@ -167,7 +185,7 @@ export function CheckoutForm() {
                       <FormItem>
                         <FormLabel>Phone Number</FormLabel>
                         <FormControl>
-                          <Input type="tel" placeholder="e.g. +1 123 456 7890" {...field} />
+                          <Input type="tel" placeholder="e.g. +1 (123) 456-7890" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -207,7 +225,7 @@ export function CheckoutForm() {
                       <FormItem>
                         <FormLabel>Postal Code</FormLabel>
                         <FormControl>
-                          <Input placeholder="Postal Code" {...field} />
+                          <Input placeholder="Postal Code / ZIP" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -261,5 +279,3 @@ export function CheckoutForm() {
     </div>
   );
 }
-
-    
